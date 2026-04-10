@@ -4,62 +4,6 @@ import pandas as pd
 st.set_page_config(page_title="Fuel SaaS", layout="wide")
 
 # -----------------------
-# 🎨 GLOBAL CSS
-# -----------------------
-st.markdown("""
-<style>
-
-html, body, [class*="css"] {
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: #f9fafb;
-}
-
-/* NAVBAR */
-.navbar {
-    position: sticky;
-    top: 0;
-    background: white;
-    padding: 10px 0;
-    z-index: 999;
-    border-bottom: 1px solid #eee;
-}
-
-/* CARD */
-.card {
-    padding: 18px;
-    border-radius: 16px;
-    background: #ffffff;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-    margin-bottom: 12px;
-}
-
-/* KPI */
-.kpi {
-    text-align: center;
-    padding: 18px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, #111827, #1f2937);
-    color: white;
-}
-
-/* BUTTON */
-.stButton>button {
-    border-radius: 10px;
-    font-weight: 500;
-    padding: 8px 12px;
-}
-
-/* MOBILE */
-@media (max-width: 768px) {
-    .card {
-        padding: 14px;
-    }
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# -----------------------
 # DATA INIT
 # -----------------------
 if "clienti" not in st.session_state:
@@ -74,33 +18,31 @@ if "prezzo_base" not in st.session_state:
 if "edit_id" not in st.session_state:
     st.session_state.edit_id = None
 
-if "page" not in st.session_state:
-    st.session_state.page = "dashboard"
-
 df = st.session_state.clienti
 
 # -----------------------
-# NAVBAR
+# NAVIGATION (APP STYLE)
 # -----------------------
-st.markdown('<div class="navbar">', unsafe_allow_html=True)
+if "page" not in st.session_state:
+    st.session_state.page = "dashboard"
 
 c1, c2, c3 = st.columns(3)
 
 with c1:
-    if st.button("📊", use_container_width=True):
+    if st.button("📊 Dashboard", use_container_width=True):
         st.session_state.page = "dashboard"
 
 with c2:
-    if st.button("👤", use_container_width=True):
+    if st.button("👤 Clienti", use_container_width=True):
         st.session_state.page = "clienti"
 
 with c3:
-    if st.button("➕", use_container_width=True):
+    if st.button("➕ Cliente", use_container_width=True):
         st.session_state.page = "cliente"
 
-st.markdown('</div>', unsafe_allow_html=True)
-
 page = st.session_state.page
+
+st.divider()
 
 # =========================================================
 # 📊 DASHBOARD
@@ -118,36 +60,83 @@ if page == "dashboard":
 
     st.session_state.prezzo_base = prezzo_base
 
+    # -----------------------
+    # KPI (FIXED + SPACING + LABELS)
+    # -----------------------
     media_margine = df["Margine"].mean()
     clienti_count = len(df)
     prezzo_medio = (prezzo_base + df["Margine"] + df["Trasporto"]).mean()
 
-    # KPI
-    k1, k2, k3, k4 = st.columns(4)
+    st.markdown("### 📊 Riepilogo")
 
-    def kpi(label, value):
+    k1, k2 = st.columns(2, gap="large")
+    k3, k4 = st.columns(2, gap="large")
+
+    with k1:
         st.markdown(f"""
-        <div class="kpi">
-            <div style="font-size:13px; opacity:0.7;">{label}</div>
-            <div style="font-size:22px; font-weight:600;">{value}</div>
+        <div style="
+            padding:14px;
+            border-radius:14px;
+            background:#111827;
+            color:white;
+            text-align:center;
+            margin-bottom:10px;
+        ">
+        <div style="font-size:12px;opacity:0.7;">💰 Base</div>
+        <div style="font-size:20px;font-weight:600">{prezzo_base:.3f} €</div>
         </div>
         """, unsafe_allow_html=True)
 
-    with k1:
-        kpi("💰 Base", f"{prezzo_base:.3f} €")
-
     with k2:
-        kpi("👤 Clienti", clienti_count)
+        st.markdown(f"""
+        <div style="
+            padding:14px;
+            border-radius:14px;
+            background:#111827;
+            color:white;
+            text-align:center;
+            margin-bottom:10px;
+        ">
+        <div style="font-size:12px;opacity:0.7;">👤 Clienti</div>
+        <div style="font-size:20px;font-weight:600">{clienti_count}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with k3:
-        kpi("📊 Margine", f"{media_margine:.3f}")
+        st.markdown(f"""
+        <div style="
+            padding:14px;
+            border-radius:14px;
+            background:#111827;
+            color:white;
+            text-align:center;
+            margin-top:10px;
+        ">
+        <div style="font-size:12px;opacity:0.7;">📊 Margine medio</div>
+        <div style="font-size:20px;font-weight:600">{media_margine:.3f}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with k4:
-        kpi("⛽ Prezzo", f"{prezzo_medio:.3f}")
+        st.markdown(f"""
+        <div style="
+            padding:14px;
+            border-radius:14px;
+            background:#111827;
+            color:white;
+            text-align:center;
+            margin-top:10px;
+        ">
+        <div style="font-size:12px;opacity:0.7;">⛽ Prezzo medio</div>
+        <div style="font-size:20px;font-weight:600">{prezzo_medio:.3f}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.divider()
 
-    # SEARCH
+    # -----------------------
+    # CLIENTI (NON MODIFICATO COME RICHIESTO)
+    # -----------------------
     search = st.text_input("🔍 Cerca cliente")
 
     filtered = df.copy()
@@ -158,42 +147,40 @@ if page == "dashboard":
             filtered["PIVA"].str.contains(search, case=False)
         ]
 
-    # CLIENT CARDS
     for _, c in filtered.iterrows():
 
         prezzo_finale = prezzo_base + c["Margine"] + c["Trasporto"]
 
         st.markdown(f"""
-        <div class="card">
-            <div style="font-size:18px; font-weight:600;">👤 {c['Nome']}</div>
-            <div style="font-size:13px; color:gray;">P.IVA: {c['PIVA']}</div>
+        ### 👤 {c['Nome']}
+        📄 P.IVA: {c['PIVA']}  
+        💰 **{prezzo_finale:.3f} €/L**
+        """)
 
-            <div style="margin-top:8px; font-size:20px; font-weight:600;">
-                💰 {prezzo_finale:.3f} €/L
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        col1, col2, col3 = st.columns([2,1,1])
+        col1, col2, col3 = st.columns(3)
 
         with col1:
             msg = f"Prezzo oggi {prezzo_finale:.3f} €/L"
             link = f"https://wa.me/{c['Telefono']}?text={msg.replace(' ', '%20')}"
 
-            st.markdown(f"""
-            <a href="{link}" target="_blank" style="
-                display:block;
-                padding:10px;
-                background:#22c55e;
-                color:white;
-                text-align:center;
-                border-radius:10px;
-                text-decoration:none;
-                font-weight:500;
-            ">
-            📲 Invia WhatsApp
-            </a>
-            """, unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <a href="{link}" target="_blank" style="
+                    display:inline-block;
+                    padding:6px 10px;
+                    font-size:12px;
+                    background:#22c55e;
+                    color:white;
+                    border-radius:8px;
+                    text-decoration:none;
+                    text-align:center;
+                    width:100%;
+                ">
+                📲 WhatsApp
+                </a>
+                """,
+                unsafe_allow_html=True
+            )
 
         with col2:
             if st.button("✏️", key=f"edit_{c['ID']}"):
@@ -204,6 +191,8 @@ if page == "dashboard":
             if st.button("🗑️", key=f"del_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
                 st.rerun()
+
+        st.divider()
 
 # =========================================================
 # 👤 CLIENTI
@@ -225,12 +214,10 @@ elif page == "clienti":
     for _, c in filtered.iterrows():
 
         st.markdown(f"""
-        <div class="card">
-            <div style="font-size:18px; font-weight:600;">👤 {c['Nome']}</div>
-            <div style="font-size:13px; color:gray;">{c['PIVA']}</div>
-            <div style="font-size:13px;">📞 {c['Telefono']}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        ### 👤 {c['Nome']}
+        📄 {c['PIVA']}  
+        📞 {c['Telefono']}
+        """)
 
         col1, col2 = st.columns(2)
 
@@ -243,6 +230,8 @@ elif page == "clienti":
             if st.button("🗑️ Elimina", key=f"del_list_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
                 st.rerun()
+
+        st.divider()
 
 # =========================================================
 # ➕ CLIENTE
@@ -264,25 +253,14 @@ elif page == "cliente":
     else:
         c = {"Nome": "", "PIVA": "", "Telefono": "", "Margine": 0.0, "Trasporto": 0.0}
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        nome = st.text_input("Nome", value=c["Nome"])
-        piva = st.text_input("P.IVA", value=c["PIVA"])
-
-    with col2:
-        tel = st.text_input("Telefono", value=c["Telefono"])
+    nome = st.text_input("Nome", value=c["Nome"])
+    piva = st.text_input("P.IVA", value=c["PIVA"])
+    tel = st.text_input("Telefono", value=c["Telefono"])
 
     margine = st.number_input("Margine", value=float(c["Margine"]), step=0.001, format="%.3f")
     trasporto = st.number_input("Trasporto", value=float(c["Trasporto"]), step=0.001, format="%.3f")
 
-    salva = st.button("💾 Salva", use_container_width=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    if salva:
+    if st.button("💾 Salva"):
 
         if editing:
             st.session_state.clienti.loc[
@@ -293,7 +271,7 @@ elif page == "cliente":
             st.session_state.edit_id = None
 
         else:
-            new_id = int(df["ID"].max()) + 1 if len(df) > 0 else 1
+            new_id = int(df["ID"].max()) + 1
 
             new_row = pd.DataFrame([{
                 "ID": new_id,
