@@ -1,105 +1,68 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(
-    page_title="Fuel Manager",
-    page_icon="⛽",
-    layout="wide"
-)
+st.set_page_config(page_title="Fuel Manager", layout="wide")
 
-# -----------------------
-# SESSION DATA
-# -----------------------
+# -------------------------
+# INIT DATA
+# -------------------------
 if "clienti" not in st.session_state:
     st.session_state.clienti = pd.DataFrame([
-        {"Nome": "Mario SRL", "PIVA": "123", "Telefono": "333111", "Margine": 0.05, "Trasporto": 0.02},
-        {"Nome": "Luca Trasporti", "PIVA": "456", "Telefono": "333222", "Margine": 0.04, "Trasporto": 0.03},
+        {"ID": 1, "Nome": "Mario SRL", "PIVA": "123", "Telefono": "333111", "Margine": 0.025, "Trasporto": 0.01},
+        {"ID": 2, "Nome": "Luca Trasporti", "PIVA": "456", "Telefono": "333222", "Margine": 0.03, "Trasporto": 0.02},
     ])
 
 if "prezzo_base" not in st.session_state:
     st.session_state.prezzo_base = 1.00
 
-# -----------------------
-# MENU SIDEBAR
-# -----------------------
-menu = st.sidebar.selectbox(
-    "📂 Menu",
-    ["📊 Dashboard", "➕ Nuovo Cliente", "📋 Lista Clienti"]
-)
+if "edit_id" not in st.session_state:
+    st.session_state.edit_id = None
 
-# -----------------------
+# -------------------------
+# MENU (CLICKABLE STYLE)
+# -------------------------
+st.title("⛽ Fuel Manager")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    btn_dashboard = st.button("📊 Dashboard")
+
+with col2:
+    btn_add = st.button("➕ Nuovo Cliente")
+
+with col3:
+    btn_list = st.button("📋 Clienti")
+
+if "page" not in st.session_state:
+    st.session_state.page = "dashboard"
+
+if btn_dashboard:
+    st.session_state.page = "dashboard"
+if btn_add:
+    st.session_state.page = "add"
+if btn_list:
+    st.session_state.page = "list"
+
+page = st.session_state.page
+
+# -------------------------
 # DASHBOARD
-# -----------------------
-if menu == "📊 Dashboard":
+# -------------------------
+if page == "dashboard":
 
-    st.title("⛽ Dashboard")
+    st.subheader("📊 Dashboard")
+
+    search = st.text_input("🔍 Cerca cliente veloce")
 
     prezzo_base = st.number_input(
-        "💰 Prezzo base oggi",
+        "💰 Prezzo base",
         value=float(st.session_state.prezzo_base),
-        step=0.01
+        step=0.001,  # precisione alta
+        format="%.3f"
     )
 
     st.session_state.prezzo_base = prezzo_base
-
-    st.divider()
-
-    for i, row in st.session_state.clienti.iterrows():
-
-        prezzo_finale = prezzo_base + row["Margine"] + row["Trasporto"]
-
-        col1, col2, col3 = st.columns([3, 2, 2])
-
-        with col1:
-            st.subheader(f"👤 {row['Nome']}")
-            st.caption(f"P.IVA: {row['PIVA']}")
-
-        with col2:
-            st.metric("💰 Prezzo", f"{prezzo_finale:.3f} €/L")
-
-        with col3:
-            msg = f"Carissimo {row['Nome']}, il prezzo di oggi è {prezzo_finale:.3f} €/L"
-            wa_link = f"https://wa.me/{row['Telefono']}?text={msg.replace(' ', '%20')}"
-
-            st.link_button("📲 WhatsApp", wa_link)
-
-        st.divider()
-
-# -----------------------
-# NUOVO CLIENTE
-# -----------------------
-elif menu == "➕ Nuovo Cliente":
-
-    st.title("➕ Inserisci Cliente")
-
-    nome = st.text_input("Nome")
-    piva = st.text_input("P.IVA")
-    telefono = st.text_input("Telefono")
-    margine = st.number_input("Margine", value=0.0, step=0.01)
-    trasporto = st.number_input("Trasporto", value=0.0, step=0.01)
-
-    if st.button("💾 Salva"):
-
-        nuovo = pd.DataFrame([{
-            "Nome": nome,
-            "PIVA": piva,
-            "Telefono": telefono,
-            "Margine": margine,
-            "Trasporto": trasporto
-        }])
-
-        st.session_state.clienti = pd.concat([st.session_state.clienti, nuovo], ignore_index=True)
-
-        st.success("Cliente aggiunto!")
-
-# -----------------------
-# LISTA CLIENTI + RICERCA
-# -----------------------
-elif menu == "📋 Lista Clienti":
-
-    st.title("📋 Clienti")
-
-    search = st.text_input("🔍 Cerca per Nome o P.IVA")
 
     df = st.session_state.clienti
 
@@ -109,4 +72,86 @@ elif menu == "📋 Lista Clienti":
             df["PIVA"].str.contains(search, case=False)
         ]
 
-    st.dataframe(df, use_container_width=True)
+    for _, c in df.iterrows():
+
+        prezzo_finale = prezzo_base + c["Margine"] + c["Trasporto"]
+
+        col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
+
+        with col1:
+            st.markdown(f"### 👤 {c['Nome']}")
+            st.caption(c["PIVA"])
+
+        with col2:
+            st.metric("💰", f"{prezzo_finale:.3f} €/L")
+
+        with col3:
+            msg = f"Carissimo {c['Nome']}, prezzo oggi {prezzo_finale:.3f} €/L"
+            wa = f"https://wa.me/{c['Telefono']}?text={msg.replace(' ', '%20')}"
+            st.link_button("📲 WhatsApp", wa)
+
+        with col4:
+            if st.button("🗑️", key=f"del_{c['ID']}"):
+                st.session_state.clienti = st.session_state.clienti[
+                    st.session_state.clienti["ID"] != c["ID"]
+                ]
+
+            if st.button("✏️", key=f"edit_{c['ID']}"):
+                st.session_state.edit_id = c["ID"]
+
+# -------------------------
+# ADD / EDIT CLIENTE
+# -------------------------
+elif page == "add":
+
+    st.subheader("➕ Cliente")
+
+    editing = st.session_state.edit_id is not None
+
+    if editing:
+        cliente = st.session_state.clienti[
+            st.session_state.clienti["ID"] == st.session_state.edit_id
+        ].iloc[0]
+    else:
+        cliente = {"Nome": "", "PIVA": "", "Telefono": "", "Margine": 0.0, "Trasporto": 0.0}
+
+    nome = st.text_input("Nome", value=cliente["Nome"])
+    piva = st.text_input("P.IVA", value=cliente["PIVA"])
+    tel = st.text_input("Telefono", value=cliente["Telefono"])
+    margine = st.number_input("Margine", value=float(cliente["Margine"]), step=0.001, format="%.3f")
+    trasporto = st.number_input("Trasporto", value=float(cliente["Trasporto"]), step=0.001, format="%.3f")
+
+    if st.button("💾 Salva"):
+
+        if editing:
+            st.session_state.clienti.loc[
+                st.session_state.clienti["ID"] == st.session_state.edit_id,
+                ["Nome", "PIVA", "Telefono", "Margine", "Trasporto"]
+            ] = [nome, piva, tel, margine, trasporto]
+
+            st.session_state.edit_id = None
+
+        else:
+            new_id = int(st.session_state.clienti["ID"].max()) + 1
+
+            new_row = pd.DataFrame([{
+                "ID": new_id,
+                "Nome": nome,
+                "PIVA": piva,
+                "Telefono": tel,
+                "Margine": margine,
+                "Trasporto": trasporto
+            }])
+
+            st.session_state.clienti = pd.concat([st.session_state.clienti, new_row], ignore_index=True)
+
+        st.success("Salvato!")
+
+# -------------------------
+# LISTA CLIENTI
+# -------------------------
+elif page == "list":
+
+    st.subheader("📋 Clienti")
+
+    st.dataframe(st.session_state.clienti, use_container_width=True)
