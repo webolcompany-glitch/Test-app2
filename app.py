@@ -1,16 +1,30 @@
 import streamlit as st
 import pandas as pd
+import os
 
-st.set_page_config(page_title="Fuel SaaS", layout="wide")
+st.set_page_config(page_title="Fuel SaaS Demo", layout="wide")
 
-# -----------------------
+# =======================
+# 💾 FILE STORAGE
+# =======================
+FILE = "clienti.csv"
+
+def load_data():
+    if os.path.exists(FILE):
+        return pd.read_csv(FILE)
+    else:
+        return pd.DataFrame(columns=[
+            "ID", "Nome", "PIVA", "Telefono", "Margine", "Trasporto"
+        ])
+
+def save_data(df):
+    df.to_csv(FILE, index=False)
+
+# =======================
 # INIT DATA
-# -----------------------
+# =======================
 if "clienti" not in st.session_state:
-    st.session_state.clienti = pd.DataFrame([
-        {"ID": 1, "Nome": "Mario SRL", "PIVA": "123", "Telefono": "333111", "Margine": 0.025, "Trasporto": 0.01},
-        {"ID": 2, "Nome": "Luca Trasporti", "PIVA": "456", "Telefono": "333222", "Margine": 0.03, "Trasporto": 0.02},
-    ])
+    st.session_state.clienti = load_data()
 
 if "prezzo_base" not in st.session_state:
     st.session_state.prezzo_base = 1.000
@@ -20,9 +34,9 @@ if "edit_id" not in st.session_state:
 
 df = st.session_state.clienti
 
-# =========================================================
-# 🧭 NAVIGATION
-# =========================================================
+# =======================
+# NAVIGATION
+# =======================
 if "page" not in st.session_state:
     st.session_state.page = "dashboard"
 
@@ -37,7 +51,7 @@ with c2:
         st.session_state.page = "clienti"
 
 with c3:
-    if st.button("➕ Nuovo", use_container_width=True):
+    if st.button("➕ Nuovo cliente", use_container_width=True):
         st.session_state.page = "cliente"
 
 page = st.session_state.page
@@ -63,9 +77,9 @@ if page == "dashboard":
     # -----------------------
     # KPI
     # -----------------------
-    media_margine = df["Margine"].mean()
+    media_margine = df["Margine"].mean() if not df.empty else 0
     clienti_count = len(df)
-    prezzo_medio = (prezzo_base + df["Margine"] + df["Trasporto"]).mean()
+    prezzo_medio = (prezzo_base + df["Margine"] + df["Trasporto"]).mean() if not df.empty else prezzo_base
 
     st.markdown("### 📊 Riepilogo")
 
@@ -77,48 +91,46 @@ if page == "dashboard":
             background:#111827;
             color:white;
             text-align:center;
-            margin:0;
+            margin:6px 0;
         ">
         <div style="font-size:12px;opacity:0.7;">{label}</div>
         <div style="font-size:20px;font-weight:600">{value}</div>
         </div>
         """
 
-    # 🔥 FIX SPAZI MOBILE UNIFORMI (IMPORTANTISSIMO)
-    grid = st.columns(2, gap="small")
+    k1, k2 = st.columns(2, gap="small")
+    k3, k4 = st.columns(2, gap="small")
 
-    with grid[0]:
+    with k1:
         st.markdown(card("💰 Base", f"{prezzo_base:.3f} €"), unsafe_allow_html=True)
 
-    with grid[1]:
+    with k2:
         st.markdown(card("👤 Clienti", clienti_count), unsafe_allow_html=True)
 
-    grid = st.columns(2, gap="small")
-
-    with grid[0]:
+    with k3:
         st.markdown(card("📊 Margine medio", f"{media_margine:.3f}"), unsafe_allow_html=True)
 
-    with grid[1]:
+    with k4:
         st.markdown(card("⛽ Prezzo medio", f"{prezzo_medio:.3f}"), unsafe_allow_html=True)
 
     st.divider()
 
-    # -----------------------
+    # =======================
     # SEARCH
-    # -----------------------
+    # =======================
     search = st.text_input("🔍 Cerca cliente")
 
     filtered = df.copy()
 
-    if search:
+    if search and not df.empty:
         filtered = filtered[
             filtered["Nome"].str.contains(search, case=False) |
             filtered["PIVA"].str.contains(search, case=False)
         ]
 
-    # -----------------------
+    # =======================
     # CLIENT LIST
-    # -----------------------
+    # =======================
     for _, c in filtered.iterrows():
 
         prezzo_finale = prezzo_base + c["Margine"] + c["Trasporto"]
@@ -157,12 +169,13 @@ if page == "dashboard":
         with col2:
             if st.button("🗑️ Elimina cliente", key=f"del_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
+                save_data(st.session_state.clienti)
                 st.rerun()
 
         st.divider()
 
 # =========================================================
-# 👤 CLIENTI LIST
+# 👤 LISTA CLIENTI
 # =========================================================
 elif page == "clienti":
 
@@ -172,7 +185,7 @@ elif page == "clienti":
 
     filtered = df.copy()
 
-    if search:
+    if search and not df.empty:
         filtered = filtered[
             filtered["Nome"].str.contains(search, case=False) |
             filtered["PIVA"].str.contains(search, case=False)
@@ -189,19 +202,20 @@ elif page == "clienti":
         col1, col2 = st.columns(2, gap="small")
 
         with col1:
-            if st.button("✏️ Modifica cliente", key=f"edit_list_{c['ID']}"):
+            if st.button("✏️ Modifica cliente", key=f"edit_{c['ID']}"):
                 st.session_state.edit_id = c["ID"]
                 st.session_state.page = "cliente"
 
         with col2:
             if st.button("🗑️ Elimina cliente", key=f"del_list_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
+                save_data(st.session_state.clienti)
                 st.rerun()
 
         st.divider()
 
 # =========================================================
-# ➕ CLIENTE CREATE / EDIT
+# ➕ CREA / MODIFICA CLIENTE
 # =========================================================
 elif page == "cliente":
 
@@ -211,11 +225,9 @@ elif page == "cliente":
 
     if editing:
         c = df[df["ID"] == st.session_state.edit_id]
-
         if c.empty:
             st.warning("Cliente non trovato")
             st.stop()
-
         c = c.iloc[0]
     else:
         c = {"Nome": "", "PIVA": "", "Telefono": "", "Margine": 0.0, "Trasporto": 0.0}
@@ -229,7 +241,6 @@ elif page == "cliente":
 
     if st.button("💾 Salva cliente"):
 
-        # 🔥 FIX ID BUG
         if editing:
             st.session_state.clienti.loc[
                 st.session_state.clienti["ID"] == st.session_state.edit_id,
@@ -254,6 +265,8 @@ elif page == "cliente":
             }])
 
             st.session_state.clienti = pd.concat([df, new_row], ignore_index=True)
+
+        save_data(st.session_state.clienti)
 
         st.success("Salvato!")
         st.session_state.page = "clienti"
