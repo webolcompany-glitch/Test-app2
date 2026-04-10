@@ -61,7 +61,7 @@ if page == "dashboard":
     st.session_state.prezzo_base = prezzo_base
 
     # -----------------------
-    # KPI CARDS (2x2 GRID)
+    # KPI (FIXED + SPACING + LABELS)
     # -----------------------
     media_margine = df["Margine"].mean()
     clienti_count = len(df)
@@ -69,12 +69,19 @@ if page == "dashboard":
 
     st.markdown("### 📊 Riepilogo")
 
-    k1, k2 = st.columns(2)
-    k3, k4 = st.columns(2)
+    k1, k2 = st.columns(2, gap="large")
+    k3, k4 = st.columns(2, gap="large")
 
     with k1:
         st.markdown(f"""
-        <div style="padding:14px;border-radius:14px;background:#111827;color:white;text-align:center">
+        <div style="
+            padding:14px;
+            border-radius:14px;
+            background:#111827;
+            color:white;
+            text-align:center;
+            margin-bottom:10px;
+        ">
         <div style="font-size:12px;opacity:0.7;">💰 Base</div>
         <div style="font-size:20px;font-weight:600">{prezzo_base:.3f} €</div>
         </div>
@@ -82,7 +89,14 @@ if page == "dashboard":
 
     with k2:
         st.markdown(f"""
-        <div style="padding:14px;border-radius:14px;background:#111827;color:white;text-align:center">
+        <div style="
+            padding:14px;
+            border-radius:14px;
+            background:#111827;
+            color:white;
+            text-align:center;
+            margin-bottom:10px;
+        ">
         <div style="font-size:12px;opacity:0.7;">👤 Clienti</div>
         <div style="font-size:20px;font-weight:600">{clienti_count}</div>
         </div>
@@ -90,16 +104,30 @@ if page == "dashboard":
 
     with k3:
         st.markdown(f"""
-        <div style="padding:14px;border-radius:14px;background:#111827;color:white;text-align:center">
-        <div style="font-size:12px;opacity:0.7;">📊 Margine</div>
+        <div style="
+            padding:14px;
+            border-radius:14px;
+            background:#111827;
+            color:white;
+            text-align:center;
+            margin-top:10px;
+        ">
+        <div style="font-size:12px;opacity:0.7;">📊 Margine medio</div>
         <div style="font-size:20px;font-weight:600">{media_margine:.3f}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with k4:
         st.markdown(f"""
-        <div style="padding:14px;border-radius:14px;background:#111827;color:white;text-align:center">
-        <div style="font-size:12px;opacity:0.7;">⛽ Medio</div>
+        <div style="
+            padding:14px;
+            border-radius:14px;
+            background:#111827;
+            color:white;
+            text-align:center;
+            margin-top:10px;
+        ">
+        <div style="font-size:12px;opacity:0.7;">⛽ Prezzo medio</div>
         <div style="font-size:20px;font-weight:600">{prezzo_medio:.3f}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -107,7 +135,7 @@ if page == "dashboard":
     st.divider()
 
     # -----------------------
-    # SEARCH
+    # CLIENTI (NON MODIFICATO COME RICHIESTO)
     # -----------------------
     search = st.text_input("🔍 Cerca cliente")
 
@@ -119,9 +147,6 @@ if page == "dashboard":
             filtered["PIVA"].str.contains(search, case=False)
         ]
 
-    # -----------------------
-    # CLIENT CARDS
-    # -----------------------
     for _, c in filtered.iterrows():
 
         prezzo_finale = prezzo_base + c["Margine"] + c["Trasporto"]
