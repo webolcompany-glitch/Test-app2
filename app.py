@@ -20,24 +20,24 @@ if "edit_id" not in st.session_state:
 
 df = st.session_state.clienti
 
-# -----------------------
-# NAVIGATION (APP STYLE)
-# -----------------------
+# =========================================================
+# 🧭 NAVIGATION (APP STYLE ORIZZONTALE)
+# =========================================================
 if "page" not in st.session_state:
     st.session_state.page = "dashboard"
 
-c1, c2, c3 = st.columns(3)
+col1, col2, col3 = st.columns(3)
 
-with c1:
+with col1:
     if st.button("📊 Dashboard", use_container_width=True):
         st.session_state.page = "dashboard"
 
-with c2:
+with col2:
     if st.button("👤 Clienti", use_container_width=True):
         st.session_state.page = "clienti"
 
-with c3:
-    if st.button("➕ Cliente", use_container_width=True):
+with col3:
+    if st.button("➕ Nuovo cliente", use_container_width=True):
         st.session_state.page = "cliente"
 
 page = st.session_state.page
@@ -61,7 +61,7 @@ if page == "dashboard":
     st.session_state.prezzo_base = prezzo_base
 
     # -----------------------
-    # KPI (FIXED + SPACING + LABELS)
+    # KPI CARDS (CLEAN + SPACING)
     # -----------------------
     media_margine = df["Margine"].mean()
     clienti_count = len(df)
@@ -69,73 +69,40 @@ if page == "dashboard":
 
     st.markdown("### 📊 Riepilogo")
 
+    def card(label, value):
+        return f"""
+        <div style="
+            padding:14px;
+            border-radius:14px;
+            background:#111827;
+            color:white;
+            text-align:center;
+            margin:8px 0;
+        ">
+        <div style="font-size:12px;opacity:0.7;">{label}</div>
+        <div style="font-size:20px;font-weight:600">{value}</div>
+        </div>
+        """
+
     k1, k2 = st.columns(2, gap="large")
     k3, k4 = st.columns(2, gap="large")
 
     with k1:
-        st.markdown(f"""
-        <div style="
-            padding:14px;
-            border-radius:14px;
-            background:#111827;
-            color:white;
-            text-align:center;
-            margin-bottom:10px;
-        ">
-        <div style="font-size:12px;opacity:0.7;">💰 Base</div>
-        <div style="font-size:20px;font-weight:600">{prezzo_base:.3f} €</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(card("💰 Base", f"{prezzo_base:.3f} €"), unsafe_allow_html=True)
 
     with k2:
-        st.markdown(f"""
-        <div style="
-            padding:14px;
-            border-radius:14px;
-            background:#111827;
-            color:white;
-            text-align:center;
-            margin-bottom:10px;
-        ">
-        <div style="font-size:12px;opacity:0.7;">👤 Clienti</div>
-        <div style="font-size:20px;font-weight:600">{clienti_count}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(card("👤 Clienti", clienti_count), unsafe_allow_html=True)
 
     with k3:
-        st.markdown(f"""
-        <div style="
-            padding:14px;
-            border-radius:14px;
-            background:#111827;
-            color:white;
-            text-align:center;
-            margin-top:10px;
-        ">
-        <div style="font-size:12px;opacity:0.7;">📊 Margine medio</div>
-        <div style="font-size:20px;font-weight:600">{media_margine:.3f}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(card("📊 Margine medio", f"{media_margine:.3f}"), unsafe_allow_html=True)
 
     with k4:
-        st.markdown(f"""
-        <div style="
-            padding:14px;
-            border-radius:14px;
-            background:#111827;
-            color:white;
-            text-align:center;
-            margin-top:10px;
-        ">
-        <div style="font-size:12px;opacity:0.7;">⛽ Prezzo medio</div>
-        <div style="font-size:20px;font-weight:600">{prezzo_medio:.3f}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(card("⛽ Prezzo medio", f"{prezzo_medio:.3f}"), unsafe_allow_html=True)
 
     st.divider()
 
     # -----------------------
-    # CLIENTI (NON MODIFICATO COME RICHIESTO)
+    # SEARCH
     # -----------------------
     search = st.text_input("🔍 Cerca cliente")
 
@@ -147,6 +114,9 @@ if page == "dashboard":
             filtered["PIVA"].str.contains(search, case=False)
         ]
 
+    # -----------------------
+    # CLIENT CARDS
+    # -----------------------
     for _, c in filtered.iterrows():
 
         prezzo_finale = prezzo_base + c["Margine"] + c["Trasporto"]
@@ -157,8 +127,9 @@ if page == "dashboard":
         💰 **{prezzo_finale:.3f} €/L**
         """)
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2, gap="small")
 
+        # WhatsApp
         with col1:
             msg = f"Prezzo oggi {prezzo_finale:.3f} €/L"
             link = f"https://wa.me/{c['Telefono']}?text={msg.replace(' ', '%20')}"
@@ -182,13 +153,9 @@ if page == "dashboard":
                 unsafe_allow_html=True
             )
 
+        # Delete
         with col2:
-            if st.button("✏️", key=f"edit_{c['ID']}"):
-                st.session_state.edit_id = c["ID"]
-                st.session_state.page = "cliente"
-
-        with col3:
-            if st.button("🗑️", key=f"del_{c['ID']}"):
+            if st.button("🗑️ Elimina cliente", key=f"del_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
                 st.rerun()
 
@@ -219,22 +186,22 @@ elif page == "clienti":
         📞 {c['Telefono']}
         """)
 
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2, gap="small")
 
         with col1:
-            if st.button("✏️ Modifica", key=f"edit_list_{c['ID']}"):
+            if st.button("✏️ Modifica cliente", key=f"edit_list_{c['ID']}"):
                 st.session_state.edit_id = c["ID"]
                 st.session_state.page = "cliente"
 
         with col2:
-            if st.button("🗑️ Elimina", key=f"del_list_{c['ID']}"):
+            if st.button("🗑️ Elimina cliente", key=f"del_list_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
                 st.rerun()
 
         st.divider()
 
 # =========================================================
-# ➕ CLIENTE
+# ➕ CLIENTE (CREATE / EDIT)
 # =========================================================
 elif page == "cliente":
 
@@ -260,7 +227,7 @@ elif page == "cliente":
     margine = st.number_input("Margine", value=float(c["Margine"]), step=0.001, format="%.3f")
     trasporto = st.number_input("Trasporto", value=float(c["Trasporto"]), step=0.001, format="%.3f")
 
-    if st.button("💾 Salva"):
+    if st.button("💾 Salva cliente"):
 
         if editing:
             st.session_state.clienti.loc[
