@@ -3,9 +3,9 @@ import pandas as pd
 
 st.set_page_config(page_title="Fuel Manager", layout="wide")
 
-# -------------------------
-# INIT DATA
-# -------------------------
+# -----------------------
+# INIT SAFE STATE
+# -----------------------
 if "clienti" not in st.session_state:
     st.session_state.clienti = pd.DataFrame([
         {"ID": 1, "Nome": "Mario SRL", "PIVA": "123", "Telefono": "333111", "Margine": 0.025, "Trasporto": 0.01},
@@ -15,50 +15,53 @@ if "clienti" not in st.session_state:
 if "prezzo_base" not in st.session_state:
     st.session_state.prezzo_base = 1.00
 
+if "page" not in st.session_state:
+    st.session_state.page = "dashboard"
+
 if "edit_id" not in st.session_state:
     st.session_state.edit_id = None
 
-# -------------------------
-# MENU (CLICKABLE STYLE)
-# -------------------------
+# -----------------------
+# SAFE NAVIGATION
+# -----------------------
+def go(page_name):
+    st.session_state.page = page_name
+    st.session_state.edit_id = None
+
+# -----------------------
+# MENU (BUTTON STYLE)
+# -----------------------
 st.title("⛽ Fuel Manager")
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    btn_dashboard = st.button("📊 Dashboard")
+    if st.button("📊 Dashboard"):
+        go("dashboard")
 
 with col2:
-    btn_add = st.button("➕ Nuovo Cliente")
+    if st.button("➕ Nuovo Cliente"):
+        go("add")
 
 with col3:
-    btn_list = st.button("📋 Clienti")
-
-if "page" not in st.session_state:
-    st.session_state.page = "dashboard"
-
-if btn_dashboard:
-    st.session_state.page = "dashboard"
-if btn_add:
-    st.session_state.page = "add"
-if btn_list:
-    st.session_state.page = "list"
+    if st.button("📋 Clienti"):
+        go("list")
 
 page = st.session_state.page
 
-# -------------------------
+# -----------------------
 # DASHBOARD
-# -------------------------
+# -----------------------
 if page == "dashboard":
 
     st.subheader("📊 Dashboard")
 
-    search = st.text_input("🔍 Cerca cliente veloce")
+    search = st.text_input("🔍 Cerca cliente")
 
     prezzo_base = st.number_input(
         "💰 Prezzo base",
         value=float(st.session_state.prezzo_base),
-        step=0.001,  # precisione alta
+        step=0.001,
         format="%.3f"
     )
 
@@ -80,7 +83,7 @@ if page == "dashboard":
 
         with col1:
             st.markdown(f"### 👤 {c['Nome']}")
-            st.caption(c["PIVA"])
+            st.caption(f"P.IVA: {c['PIVA']}")
 
         with col2:
             st.metric("💰", f"{prezzo_finale:.3f} €/L")
@@ -95,13 +98,15 @@ if page == "dashboard":
                 st.session_state.clienti = st.session_state.clienti[
                     st.session_state.clienti["ID"] != c["ID"]
                 ]
+                st.rerun()
 
             if st.button("✏️", key=f"edit_{c['ID']}"):
                 st.session_state.edit_id = c["ID"]
+                go("add")
 
-# -------------------------
+# -----------------------
 # ADD / EDIT CLIENTE
-# -------------------------
+# -----------------------
 elif page == "add":
 
     st.subheader("➕ Cliente")
@@ -109,9 +114,15 @@ elif page == "add":
     editing = st.session_state.edit_id is not None
 
     if editing:
-        cliente = st.session_state.clienti[
+        df_edit = st.session_state.clienti[
             st.session_state.clienti["ID"] == st.session_state.edit_id
-        ].iloc[0]
+        ]
+
+        if df_edit.empty:
+            st.error("Cliente non trovato")
+            st.stop()
+
+        cliente = df_edit.iloc[0]
     else:
         cliente = {"Nome": "", "PIVA": "", "Telefono": "", "Margine": 0.0, "Trasporto": 0.0}
 
@@ -146,10 +157,11 @@ elif page == "add":
             st.session_state.clienti = pd.concat([st.session_state.clienti, new_row], ignore_index=True)
 
         st.success("Salvato!")
+        go("dashboard")
 
-# -------------------------
+# -----------------------
 # LISTA CLIENTI
-# -------------------------
+# -----------------------
 elif page == "list":
 
     st.subheader("📋 Clienti")
