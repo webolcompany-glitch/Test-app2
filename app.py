@@ -4,7 +4,7 @@ import pandas as pd
 st.set_page_config(page_title="Fuel SaaS", layout="wide")
 
 # -----------------------
-# INIT DATA
+# DATA
 # -----------------------
 if "clienti" not in st.session_state:
     st.session_state.clienti = pd.DataFrame([
@@ -18,31 +18,27 @@ if "prezzo_base" not in st.session_state:
 if "edit_id" not in st.session_state:
     st.session_state.edit_id = None
 
-# -----------------------
-# HEADER
-# -----------------------
-st.title("⛽ Fuel SaaS Platform")
-
 df = st.session_state.clienti
 
 # -----------------------
-# TABS NAVIGATION (PRO UX)
+# DETECT MOBILE (APPROX)
 # -----------------------
-tab1, tab2, tab3 = st.tabs([
-    "📊 Dashboard",
-    "👤 Clienti",
-    "➕ Nuovo Cliente"
-])
+is_mobile = st.sidebar.checkbox("📱 Modalità Mobile (test)", value=True)
+
+# -----------------------
+# MENU SIMPLE
+# -----------------------
+page = st.radio("MENU", ["📊 Dashboard", "👤 Clienti", "➕ Cliente"], horizontal=not is_mobile)
 
 # =========================================================
-# 📊 DASHBOARD
+# 📊 DASHBOARD MOBILE FIRST
 # =========================================================
-with tab1:
+if page == "📊 Dashboard":
 
-    st.subheader("Dashboard")
+    st.title("⛽ Dashboard")
 
     prezzo_base = st.number_input(
-        "💰 Prezzo base oggi",
+        "💰 Prezzo base",
         value=float(st.session_state.prezzo_base),
         step=0.001,
         format="%.3f"
@@ -50,16 +46,14 @@ with tab1:
 
     st.session_state.prezzo_base = prezzo_base
 
-    clienti_count = len(df)
-    media_margine = df["Margine"].mean()
-    prezzo_medio = (prezzo_base + df["Margine"] + df["Trasporto"]).mean()
+    # KPI (2 per riga su mobile)
+    col1, col2 = st.columns(2)
+    col3, col4 = st.columns(2)
 
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("💰 Base", f"{prezzo_base:.3f} €")
-    col2.metric("👤 Clienti", clienti_count)
-    col3.metric("📊 Margine", f"{media_margine:.3f}")
-    col4.metric("⛽ Medio", f"{prezzo_medio:.3f}")
+    col1.metric("💰 Base", f"{prezzo_base:.3f}")
+    col2.metric("👤 Clienti", len(df))
+    col3.metric("📊 Margine", f"{df['Margine'].mean():.3f}")
+    col4.metric("⛽ Medio", f"{(prezzo_base + df['Margine'] + df['Trasporto']).mean():.3f}")
 
     st.divider()
 
@@ -73,88 +67,73 @@ with tab1:
             filtered["PIVA"].str.contains(search, case=False)
         ]
 
+    # -----------------------
+    # MOBILE CARDS (IMPORTANT)
+    # -----------------------
     for _, c in filtered.iterrows():
 
         prezzo_finale = prezzo_base + c["Margine"] + c["Trasporto"]
 
-        with st.container():
+        st.markdown(f"""
+        ## 👤 {c['Nome']}
+        📄 P.IVA: {c['PIVA']}  
+        💰 Prezzo: **{prezzo_finale:.3f} €/L**
+        """)
 
-            col1, col2, col3, col4 = st.columns([3,2,2,2])
-
-            with col1:
-                st.markdown(f"### 👤 {c['Nome']}")
-                st.caption(c["PIVA"])
-
-            with col2:
-                st.metric("€/L", f"{prezzo_finale:.3f}")
-
-            with col3:
-                msg = f"Prezzo oggi {prezzo_finale:.3f} €/L"
-                link = f"https://wa.me/{c['Telefono']}?text={msg.replace(' ', '%20')}"
-                st.link_button("📲 WhatsApp", link)
-
-            with col4:
-
-                if st.button("✏️", key=f"edit_dash_{c['ID']}"):
-                    st.session_state.edit_id = c["ID"]
-
-                if st.button("🗑️", key=f"del_dash_{c['ID']}"):
-                    st.session_state.clienti = df[df["ID"] != c["ID"]]
-                    st.rerun()
-
-        st.divider()
-
-# =========================================================
-# 👤 CLIENTI (VERSIONE MOBILE FRIENDLY MIGLIORATA)
-# =========================================================
-with tab2:
-
-    st.subheader("Lista Clienti")
-
-    for _, c in df.iterrows():
-
-        col1, col2 = st.columns([4,1])
+        col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown(f"""
-            ### 👤 {c['Nome']}
-            📄 P.IVA: {c['PIVA']}  
-            📞 {c['Telefono']}  
-            """)
-
-            st.caption(f"Margine: {c['Margine']:.3f} | Trasporto: {c['Trasporto']:.3f}")
+            msg = f"Prezzo oggi {prezzo_finale:.3f} €/L"
+            link = f"https://wa.me/{c['Telefono']}?text={msg.replace(' ', '%20')}"
+            st.link_button("📲 WhatsApp", link, use_container_width=True)
 
         with col2:
-
-            st.write("")
-
-            if st.button("✏️", key=f"edit_list_{c['ID']}"):
-                st.session_state.edit_id = c["ID"]
-                st.info("Vai su 'Nuovo Cliente' per modificare")
-
-            if st.button("🗑️", key=f"del_list_{c['ID']}"):
+            if st.button("🗑️ Elimina", key=f"del_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
                 st.rerun()
 
         st.divider()
 
 # =========================================================
-# ➕ NUOVO CLIENTE (CREATE + EDIT)
+# 👤 CLIENTI MOBILE LIST
 # =========================================================
-with tab3:
+elif page == "👤 Clienti":
 
-    st.subheader("Nuovo / Modifica Cliente")
+    st.title("Clienti")
+
+    for _, c in df.iterrows():
+
+        st.markdown(f"""
+        ### 👤 {c['Nome']}
+        📞 {c['Telefono']}  
+        📄 {c['PIVA']}
+        """)
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("✏️ Edit", key=f"edit_{c['ID']}"):
+                st.session_state.edit_id = c["ID"]
+                st.info("Vai su tab Cliente")
+
+        with col2:
+            if st.button("🗑️ Delete", key=f"del2_{c['ID']}"):
+                st.session_state.clienti = df[df["ID"] != c["ID"]]
+                st.rerun()
+
+        st.divider()
+
+# =========================================================
+# ➕ CREATE / EDIT
+# =========================================================
+elif page == "➕ Cliente":
+
+    st.title("Nuovo Cliente")
 
     editing = st.session_state.edit_id is not None
 
     if editing:
-        df_edit = df[df["ID"] == st.session_state.edit_id]
-
-        if df_edit.empty:
-            st.warning("Cliente non trovato")
-            st.stop()
-
-        c = df_edit.iloc[0]
+        c = df[df["ID"] == st.session_state.edit_id].iloc[0]
     else:
         c = {"Nome": "", "PIVA": "", "Telefono": "", "Margine": 0.0, "Trasporto": 0.0}
 
@@ -173,21 +152,12 @@ with tab3:
                 ["Nome", "PIVA", "Telefono", "Margine", "Trasporto"]
             ] = [nome, piva, tel, margine, trasporto]
 
-            st.session_state.edit_id = None
-
         else:
             new_id = int(df["ID"].max()) + 1
 
-            new_row = pd.DataFrame([{
-                "ID": new_id,
-                "Nome": nome,
-                "PIVA": piva,
-                "Telefono": tel,
-                "Margine": margine,
-                "Trasporto": trasporto
-            }])
-
-            st.session_state.clienti = pd.concat([df, new_row], ignore_index=True)
+            st.session_state.clienti.loc[len(df)] = [
+                new_id, nome, piva, tel, margine, trasporto
+            ]
 
         st.success("Salvato!")
         st.rerun()
