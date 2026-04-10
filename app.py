@@ -4,7 +4,7 @@ import pandas as pd
 st.set_page_config(page_title="Fuel SaaS", layout="wide")
 
 # -----------------------
-# DATA
+# DATA INIT
 # -----------------------
 if "clienti" not in st.session_state:
     st.session_state.clienti = pd.DataFrame([
@@ -21,17 +21,16 @@ if "edit_id" not in st.session_state:
 df = st.session_state.clienti
 
 # -----------------------
-# DETECT MOBILE (APPROX)
+# MOBILE NAV (UNIFICATO)
 # -----------------------
-is_mobile = st.sidebar.checkbox("📱 Modalità Mobile (test)", value=True)
-
-# -----------------------
-# MENU SIMPLE
-# -----------------------
-page = st.radio("MENU", ["📊 Dashboard", "👤 Clienti", "➕ Cliente"], horizontal=not is_mobile)
+page = st.radio(
+    "MENU",
+    ["📊 Dashboard", "👤 Clienti", "➕ Cliente"],
+    horizontal=True
+)
 
 # =========================================================
-# 📊 DASHBOARD MOBILE FIRST
+# 📊 DASHBOARD MOBILE-FIRST (GIÀ OK + MIGLIORATO COERENTE)
 # =========================================================
 if page == "📊 Dashboard":
 
@@ -46,7 +45,7 @@ if page == "📊 Dashboard":
 
     st.session_state.prezzo_base = prezzo_base
 
-    # KPI (2 per riga su mobile)
+    # KPI (mobile style)
     col1, col2 = st.columns(2)
     col3, col4 = st.columns(2)
 
@@ -67,17 +66,14 @@ if page == "📊 Dashboard":
             filtered["PIVA"].str.contains(search, case=False)
         ]
 
-    # -----------------------
-    # MOBILE CARDS (IMPORTANT)
-    # -----------------------
     for _, c in filtered.iterrows():
 
         prezzo_finale = prezzo_base + c["Margine"] + c["Trasporto"]
 
         st.markdown(f"""
-        ## 👤 {c['Nome']}
+        ### 👤 {c['Nome']}
         📄 P.IVA: {c['PIVA']}  
-        💰 Prezzo: **{prezzo_finale:.3f} €/L**
+        💰 **{prezzo_finale:.3f} €/L**
         """)
 
         col1, col2 = st.columns(2)
@@ -88,52 +84,68 @@ if page == "📊 Dashboard":
             st.link_button("📲 WhatsApp", link, use_container_width=True)
 
         with col2:
-            if st.button("🗑️ Elimina", key=f"del_{c['ID']}"):
+            if st.button("🗑️ Elimina", key=f"del_dash_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
                 st.rerun()
 
         st.divider()
 
 # =========================================================
-# 👤 CLIENTI MOBILE LIST
+# 👤 CLIENTI (MOBILE CARDS UNIFORMI)
 # =========================================================
 elif page == "👤 Clienti":
 
     st.title("Clienti")
 
-    for _, c in df.iterrows():
+    search = st.text_input("🔍 Cerca cliente")
+
+    filtered = df.copy()
+
+    if search:
+        filtered = filtered[
+            filtered["Nome"].str.contains(search, case=False) |
+            filtered["PIVA"].str.contains(search, case=False)
+        ]
+
+    for _, c in filtered.iterrows():
 
         st.markdown(f"""
-        ### 👤 {c['Nome']}
+        ## 👤 {c['Nome']}
+        📄 P.IVA: {c['PIVA']}  
         📞 {c['Telefono']}  
-        📄 {c['PIVA']}
         """)
 
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("✏️ Edit", key=f"edit_{c['ID']}"):
+            if st.button("✏️ Modifica", key=f"edit_{c['ID']}"):
                 st.session_state.edit_id = c["ID"]
-                st.info("Vai su tab Cliente")
+                st.info("Vai su ➕ Cliente per modificare")
 
         with col2:
-            if st.button("🗑️ Delete", key=f"del2_{c['ID']}"):
+            if st.button("🗑️ Elimina", key=f"del_list_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
                 st.rerun()
 
         st.divider()
 
 # =========================================================
-# ➕ CREATE / EDIT
+# ➕ CREATE / EDIT CLIENTE (COERENTE MOBILE)
 # =========================================================
 elif page == "➕ Cliente":
 
-    st.title("Nuovo Cliente")
+    st.title("Cliente")
 
     editing = st.session_state.edit_id is not None
 
     if editing:
-        c = df[df["ID"] == st.session_state.edit_id].iloc[0]
+        c = df[df["ID"] == st.session_state.edit_id]
+
+        if c.empty:
+            st.warning("Cliente non trovato")
+            st.stop()
+
+        c = c.iloc[0]
     else:
         c = {"Nome": "", "PIVA": "", "Telefono": "", "Margine": 0.0, "Trasporto": 0.0}
 
@@ -152,12 +164,21 @@ elif page == "➕ Cliente":
                 ["Nome", "PIVA", "Telefono", "Margine", "Trasporto"]
             ] = [nome, piva, tel, margine, trasporto]
 
+            st.session_state.edit_id = None
+
         else:
             new_id = int(df["ID"].max()) + 1
 
-            st.session_state.clienti.loc[len(df)] = [
-                new_id, nome, piva, tel, margine, trasporto
-            ]
+            new_row = pd.DataFrame([{
+                "ID": new_id,
+                "Nome": nome,
+                "PIVA": piva,
+                "Telefono": tel,
+                "Margine": margine,
+                "Trasporto": trasporto
+            }])
+
+            st.session_state.clienti = pd.concat([df, new_row], ignore_index=True)
 
         st.success("Salvato!")
         st.rerun()
