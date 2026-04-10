@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import pandas as pd
 
@@ -310,4 +309,3 @@ elif page == "cliente":
         st.success("Salvato!")
         st.session_state.page = "clienti"
         st.rerun()
-```
