@@ -21,22 +21,22 @@ if "edit_id" not in st.session_state:
 df = st.session_state.clienti
 
 # -----------------------
-# NAVIGATION (MOBILE STYLE APP)
+# NAVIGATION (APP STYLE)
 # -----------------------
 if "page" not in st.session_state:
     st.session_state.page = "dashboard"
 
-col1, col2, col3 = st.columns(3)
+c1, c2, c3 = st.columns(3)
 
-with col1:
+with c1:
     if st.button("📊 Dashboard", use_container_width=True):
         st.session_state.page = "dashboard"
 
-with col2:
+with c2:
     if st.button("👤 Clienti", use_container_width=True):
         st.session_state.page = "clienti"
 
-with col3:
+with c3:
     if st.button("➕ Cliente", use_container_width=True):
         st.session_state.page = "cliente"
 
@@ -61,26 +61,48 @@ if page == "dashboard":
     st.session_state.prezzo_base = prezzo_base
 
     # -----------------------
-    # KPI CLEAN
+    # KPI CARDS (2x2 GRID)
     # -----------------------
     media_margine = df["Margine"].mean()
     clienti_count = len(df)
     prezzo_medio = (prezzo_base + df["Margine"] + df["Trasporto"]).mean()
 
-    col1, col2 = st.columns(2)
-    col3, col4 = st.columns(2)
+    st.markdown("### 📊 Riepilogo")
 
-    with col1:
-        st.metric("💰 Base", f"{prezzo_base:.3f} €")
+    k1, k2 = st.columns(2)
+    k3, k4 = st.columns(2)
 
-    with col2:
-        st.metric("👤 Clienti", clienti_count)
+    with k1:
+        st.markdown(f"""
+        <div style="padding:14px;border-radius:14px;background:#111827;color:white;text-align:center">
+        <div style="font-size:12px;opacity:0.7;">💰 Base</div>
+        <div style="font-size:20px;font-weight:600">{prezzo_base:.3f} €</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    with col3:
-        st.metric("📊 Margine medio", f"{media_margine:.3f}")
+    with k2:
+        st.markdown(f"""
+        <div style="padding:14px;border-radius:14px;background:#111827;color:white;text-align:center">
+        <div style="font-size:12px;opacity:0.7;">👤 Clienti</div>
+        <div style="font-size:20px;font-weight:600">{clienti_count}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    with col4:
-        st.metric("⛽ Prezzo medio", f"{prezzo_medio:.3f}")
+    with k3:
+        st.markdown(f"""
+        <div style="padding:14px;border-radius:14px;background:#111827;color:white;text-align:center">
+        <div style="font-size:12px;opacity:0.7;">📊 Margine</div>
+        <div style="font-size:20px;font-weight:600">{media_margine:.3f}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with k4:
+        st.markdown(f"""
+        <div style="padding:14px;border-radius:14px;background:#111827;color:white;text-align:center">
+        <div style="font-size:12px;opacity:0.7;">⛽ Medio</div>
+        <div style="font-size:20px;font-weight:600">{prezzo_medio:.3f}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.divider()
 
@@ -110,15 +132,38 @@ if page == "dashboard":
         💰 **{prezzo_finale:.3f} €/L**
         """)
 
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
 
         with col1:
             msg = f"Prezzo oggi {prezzo_finale:.3f} €/L"
             link = f"https://wa.me/{c['Telefono']}?text={msg.replace(' ', '%20')}"
-            st.link_button("📲 WhatsApp", link, use_container_width=True)
+
+            st.markdown(
+                f"""
+                <a href="{link}" target="_blank" style="
+                    display:inline-block;
+                    padding:6px 10px;
+                    font-size:12px;
+                    background:#22c55e;
+                    color:white;
+                    border-radius:8px;
+                    text-decoration:none;
+                    text-align:center;
+                    width:100%;
+                ">
+                📲 WhatsApp
+                </a>
+                """,
+                unsafe_allow_html=True
+            )
 
         with col2:
-            if st.button("🗑️ Elimina", key=f"del_{c['ID']}"):
+            if st.button("✏️", key=f"edit_{c['ID']}"):
+                st.session_state.edit_id = c["ID"]
+                st.session_state.page = "cliente"
+
+        with col3:
+            if st.button("🗑️", key=f"del_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
                 st.rerun()
 
@@ -145,14 +190,14 @@ elif page == "clienti":
 
         st.markdown(f"""
         ### 👤 {c['Nome']}
-        📄 P.IVA: {c['PIVA']}  
+        📄 {c['PIVA']}  
         📞 {c['Telefono']}
         """)
 
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("✏️ Modifica", key=f"edit_{c['ID']}"):
+            if st.button("✏️ Modifica", key=f"edit_list_{c['ID']}"):
                 st.session_state.edit_id = c["ID"]
                 st.session_state.page = "cliente"
 
@@ -164,7 +209,7 @@ elif page == "clienti":
         st.divider()
 
 # =========================================================
-# ➕ CLIENTE (CREATE / EDIT)
+# ➕ CLIENTE
 # =========================================================
 elif page == "cliente":
 
