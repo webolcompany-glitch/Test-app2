@@ -21,20 +21,35 @@ if "edit_id" not in st.session_state:
 df = st.session_state.clienti
 
 # -----------------------
-# MOBILE NAV (UNIFICATO)
+# NAVIGATION (MOBILE STYLE APP)
 # -----------------------
-page = st.radio(
-    "MENU",
-    ["📊 Dashboard", "👤 Clienti", "➕ Cliente"],
-    horizontal=True
-)
+if "page" not in st.session_state:
+    st.session_state.page = "dashboard"
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    if st.button("📊 Dashboard", use_container_width=True):
+        st.session_state.page = "dashboard"
+
+with col2:
+    if st.button("👤 Clienti", use_container_width=True):
+        st.session_state.page = "clienti"
+
+with col3:
+    if st.button("➕ Cliente", use_container_width=True):
+        st.session_state.page = "cliente"
+
+page = st.session_state.page
+
+st.divider()
 
 # =========================================================
-# 📊 DASHBOARD MOBILE-FIRST (GIÀ OK + MIGLIORATO COERENTE)
+# 📊 DASHBOARD
 # =========================================================
-if page == "📊 Dashboard":
+if page == "dashboard":
 
-    st.title("⛽ Dashboard")
+    st.markdown("## ⛽ Dashboard")
 
     prezzo_base = st.number_input(
         "💰 Prezzo base",
@@ -45,17 +60,33 @@ if page == "📊 Dashboard":
 
     st.session_state.prezzo_base = prezzo_base
 
-    # KPI (mobile style)
+    # -----------------------
+    # KPI CLEAN
+    # -----------------------
+    media_margine = df["Margine"].mean()
+    clienti_count = len(df)
+    prezzo_medio = (prezzo_base + df["Margine"] + df["Trasporto"]).mean()
+
     col1, col2 = st.columns(2)
     col3, col4 = st.columns(2)
 
-    col1.metric("💰 Base", f"{prezzo_base:.3f}")
-    col2.metric("👤 Clienti", len(df))
-    col3.metric("📊 Margine", f"{df['Margine'].mean():.3f}")
-    col4.metric("⛽ Medio", f"{(prezzo_base + df['Margine'] + df['Trasporto']).mean():.3f}")
+    with col1:
+        st.metric("💰 Base", f"{prezzo_base:.3f} €")
+
+    with col2:
+        st.metric("👤 Clienti", clienti_count)
+
+    with col3:
+        st.metric("📊 Margine medio", f"{media_margine:.3f}")
+
+    with col4:
+        st.metric("⛽ Prezzo medio", f"{prezzo_medio:.3f}")
 
     st.divider()
 
+    # -----------------------
+    # SEARCH
+    # -----------------------
     search = st.text_input("🔍 Cerca cliente")
 
     filtered = df.copy()
@@ -66,6 +97,9 @@ if page == "📊 Dashboard":
             filtered["PIVA"].str.contains(search, case=False)
         ]
 
+    # -----------------------
+    # CLIENT CARDS
+    # -----------------------
     for _, c in filtered.iterrows():
 
         prezzo_finale = prezzo_base + c["Margine"] + c["Trasporto"]
@@ -84,18 +118,18 @@ if page == "📊 Dashboard":
             st.link_button("📲 WhatsApp", link, use_container_width=True)
 
         with col2:
-            if st.button("🗑️ Elimina", key=f"del_dash_{c['ID']}"):
+            if st.button("🗑️ Elimina", key=f"del_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
                 st.rerun()
 
         st.divider()
 
 # =========================================================
-# 👤 CLIENTI (MOBILE CARDS UNIFORMI)
+# 👤 CLIENTI
 # =========================================================
-elif page == "👤 Clienti":
+elif page == "clienti":
 
-    st.title("Clienti")
+    st.markdown("## 👤 Clienti")
 
     search = st.text_input("🔍 Cerca cliente")
 
@@ -110,9 +144,9 @@ elif page == "👤 Clienti":
     for _, c in filtered.iterrows():
 
         st.markdown(f"""
-        ## 👤 {c['Nome']}
+        ### 👤 {c['Nome']}
         📄 P.IVA: {c['PIVA']}  
-        📞 {c['Telefono']}  
+        📞 {c['Telefono']}
         """)
 
         col1, col2 = st.columns(2)
@@ -120,7 +154,7 @@ elif page == "👤 Clienti":
         with col1:
             if st.button("✏️ Modifica", key=f"edit_{c['ID']}"):
                 st.session_state.edit_id = c["ID"]
-                st.info("Vai su ➕ Cliente per modificare")
+                st.session_state.page = "cliente"
 
         with col2:
             if st.button("🗑️ Elimina", key=f"del_list_{c['ID']}"):
@@ -130,11 +164,11 @@ elif page == "👤 Clienti":
         st.divider()
 
 # =========================================================
-# ➕ CREATE / EDIT CLIENTE (COERENTE MOBILE)
+# ➕ CLIENTE (CREATE / EDIT)
 # =========================================================
-elif page == "➕ Cliente":
+elif page == "cliente":
 
-    st.title("Cliente")
+    st.markdown("## ➕ Cliente")
 
     editing = st.session_state.edit_id is not None
 
@@ -181,4 +215,5 @@ elif page == "➕ Cliente":
             st.session_state.clienti = pd.concat([df, new_row], ignore_index=True)
 
         st.success("Salvato!")
+        st.session_state.page = "clienti"
         st.rerun()
