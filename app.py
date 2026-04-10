@@ -4,7 +4,7 @@ import pandas as pd
 st.set_page_config(page_title="Fuel SaaS", layout="wide")
 
 # -----------------------
-# DATA INIT
+# INIT DATA
 # -----------------------
 if "clienti" not in st.session_state:
     st.session_state.clienti = pd.DataFrame([
@@ -21,23 +21,23 @@ if "edit_id" not in st.session_state:
 df = st.session_state.clienti
 
 # =========================================================
-# 🧭 NAVIGATION (APP STYLE ORIZZONTALE)
+# 🧭 NAVIGATION
 # =========================================================
 if "page" not in st.session_state:
     st.session_state.page = "dashboard"
 
-col1, col2, col3 = st.columns(3)
+c1, c2, c3 = st.columns(3)
 
-with col1:
+with c1:
     if st.button("📊 Dashboard", use_container_width=True):
         st.session_state.page = "dashboard"
 
-with col2:
+with c2:
     if st.button("👤 Clienti", use_container_width=True):
         st.session_state.page = "clienti"
 
-with col3:
-    if st.button("➕ Nuovo cliente", use_container_width=True):
+with c3:
+    if st.button("➕ Nuovo", use_container_width=True):
         st.session_state.page = "cliente"
 
 page = st.session_state.page
@@ -61,7 +61,7 @@ if page == "dashboard":
     st.session_state.prezzo_base = prezzo_base
 
     # -----------------------
-    # KPI CARDS (CLEAN + SPACING)
+    # KPI
     # -----------------------
     media_margine = df["Margine"].mean()
     clienti_count = len(df)
@@ -77,26 +77,28 @@ if page == "dashboard":
             background:#111827;
             color:white;
             text-align:center;
-            margin:8px 0;
+            margin:0;
         ">
         <div style="font-size:12px;opacity:0.7;">{label}</div>
         <div style="font-size:20px;font-weight:600">{value}</div>
         </div>
         """
 
-    k1, k2 = st.columns(2, gap="large")
-    k3, k4 = st.columns(2, gap="large")
+    # 🔥 FIX SPAZI MOBILE UNIFORMI (IMPORTANTISSIMO)
+    grid = st.columns(2, gap="small")
 
-    with k1:
+    with grid[0]:
         st.markdown(card("💰 Base", f"{prezzo_base:.3f} €"), unsafe_allow_html=True)
 
-    with k2:
+    with grid[1]:
         st.markdown(card("👤 Clienti", clienti_count), unsafe_allow_html=True)
 
-    with k3:
+    grid = st.columns(2, gap="small")
+
+    with grid[0]:
         st.markdown(card("📊 Margine medio", f"{media_margine:.3f}"), unsafe_allow_html=True)
 
-    with k4:
+    with grid[1]:
         st.markdown(card("⛽ Prezzo medio", f"{prezzo_medio:.3f}"), unsafe_allow_html=True)
 
     st.divider()
@@ -115,7 +117,7 @@ if page == "dashboard":
         ]
 
     # -----------------------
-    # CLIENT CARDS
+    # CLIENT LIST
     # -----------------------
     for _, c in filtered.iterrows():
 
@@ -129,7 +131,6 @@ if page == "dashboard":
 
         col1, col2 = st.columns(2, gap="small")
 
-        # WhatsApp
         with col1:
             msg = f"Prezzo oggi {prezzo_finale:.3f} €/L"
             link = f"https://wa.me/{c['Telefono']}?text={msg.replace(' ', '%20')}"
@@ -153,7 +154,6 @@ if page == "dashboard":
                 unsafe_allow_html=True
             )
 
-        # Delete
         with col2:
             if st.button("🗑️ Elimina cliente", key=f"del_{c['ID']}"):
                 st.session_state.clienti = df[df["ID"] != c["ID"]]
@@ -162,7 +162,7 @@ if page == "dashboard":
         st.divider()
 
 # =========================================================
-# 👤 CLIENTI
+# 👤 CLIENTI LIST
 # =========================================================
 elif page == "clienti":
 
@@ -201,7 +201,7 @@ elif page == "clienti":
         st.divider()
 
 # =========================================================
-# ➕ CLIENTE (CREATE / EDIT)
+# ➕ CLIENTE CREATE / EDIT
 # =========================================================
 elif page == "cliente":
 
@@ -229,6 +229,7 @@ elif page == "cliente":
 
     if st.button("💾 Salva cliente"):
 
+        # 🔥 FIX ID BUG
         if editing:
             st.session_state.clienti.loc[
                 st.session_state.clienti["ID"] == st.session_state.edit_id,
@@ -238,7 +239,10 @@ elif page == "cliente":
             st.session_state.edit_id = None
 
         else:
-            new_id = int(df["ID"].max()) + 1
+            if df.empty:
+                new_id = 1
+            else:
+                new_id = int(df["ID"].max()) + 1
 
             new_row = pd.DataFrame([{
                 "ID": new_id,
