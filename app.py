@@ -1,273 +1,126 @@
 import streamlit as st
 import pandas as pd
-import os
+import plotly.express as px
 
-st.set_page_config(page_title="Fuel SaaS Demo", layout="wide")
+# 1. Configurazione della pagina
+st.set_page_config(page_title="Gestionale E-commerce 2026", layout="wide")
+st.title("📊 Dashboard Gestionale E-commerce 2026")
+st.markdown("---")
 
-# =======================
-# 💾 FILE STORAGE
-# =======================
-FILE = "clienti.csv"
-
+# 2. Caricamento e pulizia dei dati
+@st.cache_data
 def load_data():
-    if os.path.exists(FILE):
-        return pd.read_csv(FILE)
+    # Carica ordini
+    df_ordini = pd.read_csv("Gestionale 2026.xlsx - Ordini.csv")
+    # Gestione formati data misti nel tuo file (YYYY-MM-DD e DD/MM/YYYY)
+    df_ordini['Data ordine'] = pd.to_datetime(df_ordini['Data ordine'], errors='coerce', dayfirst=True)
+    
+    # Rimuove gli spazi extra dai nomi delle colonne (es. 'Utile ')
+    df_ordini.columns = df_ordini.columns.str.strip()
+    
+    # Carica magazzino
+    df_magazzino = pd.read_csv("Gestionale 2026.xlsx - Prodotti Magazzino.csv")
+    df_magazzino.columns = df_magazzino.columns.str.strip()
+    
+    return df_ordini, df_magazzino
+
+try:
+    df_ordini, df_magazzino = load_data()
+except Exception as e:
+    st.error(f"Errore nel caricamento dei file CSV. Verifica i nomi. Dettaglio: {e}")
+    st.stop()
+
+# 3. Sidebar per i Filtri
+st.sidebar.header("🔍 Filtri Avanzati")
+
+marketplace_list = ["Tutti"] + list(df_ordini['Marketplace'].dropna().unique())
+selected_marketplace = st.sidebar.selectbox("Seleziona Marketplace", marketplace_list)
+
+paese_list = ["Tutti"] + list(df_ordini['Paese (Mercato)'].dropna().unique())
+selected_paese = st.sidebar.selectbox("Seleziona Paese", paese_list)
+
+stato_list = ["Tutti"] + list(df_ordini['Stato ordine'].dropna().unique())
+selected_stato = st.sidebar.selectbox("Stato dell'ordine", stato_list)
+
+# Applicazione filtri al dataframe ordini
+df_filtered = df_ordini.copy()
+if selected_marketplace != "Tutti":
+    df_filtered = df_filtered[df_filtered['Marketplace'] == selected_marketplace]
+if selected_paese != "Tutti":
+    df_filtered = df_filtered[df_filtered['Paese (Mercato)'] == selected_paese]
+if selected_stato != "Tutti":
+    df_filtered = df_filtered[df_filtered['Stato ordine'] == selected_stato]
+
+# 4. Creazione dei Tab principali
+tab1, tab2, tab3 = st.tabs(["💰 Performance Finanziarie", "📦 Analisi Prodotti", "🚨 Allert Riordino Magazzino"])
+
+# ---- TAB 1: PERFORMANCE FINANZIARIE ----
+with tab1:
+    st.subheader("Metriche Chiave (Periodo Selezionato)")
+    
+    # Calcolo metriche
+    fatturato_lordo = df_filtered['Fatturato (Lordo)'].sum()
+    costo_totale = df_filtered['Costo totale'].sum()
+    utile_totale = df_filtered['Utile'].sum()
+    margine = (utile_totale / fatturato_lordo * 100) if fatturato_lordo > 0 else 0
+    
+    # Visualizzazione KPI in colonne
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Fatturato Lordo", f"€ {fatturato_lordo:,.2f}")
+    col2.metric("Costo Totale", f"€ {costo_totale:,.2f}", delta_color="inverse")
+    col3.metric("Utile Netto stimato", f"€ {utile_totale:,.2f}")
+    col4.metric("Margine Medio", f"{margine:.2f}%")
+    
+    st.markdown("### Analisi Canali di Vendita")
+    g1, g2 = st.columns(2)
+    
+    # Grafico 1: Fatturato per Marketplace
+    fig_market = px.pie(df_filtered, values='Fatturato (Lordo)', names='Marketplace', 
+                        title="Quota di Fatturato per Marketplace", hole=0.4,
+                        color_discrete_sequence=px.colors.qualitative.Pastel)
+    g1.plotly_chart(fig_market, use_container_width=True)
+    
+    # Grafico 2: Trend temporale fatturato
+    df_trend = df_filtered.groupby('Data ordine')['Fatturato (Lordo)'].sum().reset_index()
+    fig_trend = px.line(df_trend, x='Data ordine', y='Fatturato (Lordo)', 
+                        title="Andamento delle Vendite nel Tempo",
+                        labels={'Fatturato (Lordo)': 'Fatturato (€)', 'Data ordine': 'Data'})
+    g2.plotly_chart(fig_trend, use_container_width=True)
+
+# ---- TAB 2: ANALISI PRODOTTI ----
+with tab2:
+    st.subheader("Performance dei Prodotti")
+    
+    # Top prodotti per utile
+    df_prod = df_filtered.groupby('Prodotto (SKU o nome)')[['Quantità ordinata', 'Fatturato (Lordo)', 'Utile']].sum().reset_index()
+    df_top_utile = df_prod.sort_values(by='Utile', ascending=False).head(10)
+    
+    fig_prod = px.bar(df_top_utile, x='Utile', y='Prodotto (SKU o nome)', orientation='h',
+                      title="Top 10 Prodotti per Utile Generato",
+                      labels={'Utile': 'Utile Netto (€)'},
+                      color='Utile', color_continuous_scale='Greens')
+    st.plotly_chart(fig_prod, use_container_width=True)
+    
+    # Focus sui prodotti "DA EVITARE"
+    st.markdown("### ⚠️ Prodotti Critici (Segnalati come DA EVITARE)")
+    df_evitare = df_filtered[df_filtered['Decisione'] == 'DA EVITARE'][['Data ordine', 'Marketplace', 'Prodotto (SKU o nome)', 'Utile', 'Note']].dropna(subset=['Prodotto (SKU o nome)'])
+    if not df_evitare.empty:
+        st.dataframe(df_evitare, use_container_width=True)
     else:
-        return pd.DataFrame(columns=[
-            "ID", "Nome", "PIVA", "Telefono", "Margine", "Trasporto"
-        ])
+        st.success("Nessun prodotto critico o in perdita nel filtro selezionato!")
 
-def save_data(df):
-    df.to_csv(FILE, index=False)
-
-# =======================
-# INIT DATA
-# =======================
-if "clienti" not in st.session_state:
-    st.session_state.clienti = load_data()
-
-if "prezzo_base" not in st.session_state:
-    st.session_state.prezzo_base = 1.000
-
-if "edit_id" not in st.session_state:
-    st.session_state.edit_id = None
-
-df = st.session_state.clienti
-
-# =======================
-# NAVIGATION
-# =======================
-if "page" not in st.session_state:
-    st.session_state.page = "dashboard"
-
-c1, c2, c3 = st.columns(3)
-
-with c1:
-    if st.button("📊 Dashboard", use_container_width=True):
-        st.session_state.page = "dashboard"
-
-with c2:
-    if st.button("👤 Clienti", use_container_width=True):
-        st.session_state.page = "clienti"
-
-with c3:
-    if st.button("➕ Nuovo cliente", use_container_width=True):
-        st.session_state.page = "cliente"
-
-page = st.session_state.page
-
-st.divider()
-
-# =========================================================
-# 📊 DASHBOARD
-# =========================================================
-if page == "dashboard":
-
-    st.markdown("## ⛽ Dashboard")
-
-    prezzo_base = st.number_input(
-        "💰 Prezzo base",
-        value=float(st.session_state.prezzo_base),
-        step=0.001,
-        format="%.3f"
-    )
-
-    st.session_state.prezzo_base = prezzo_base
-
-    # -----------------------
-    # KPI
-    # -----------------------
-    media_margine = df["Margine"].mean() if not df.empty else 0
-    clienti_count = len(df)
-    prezzo_medio = (prezzo_base + df["Margine"] + df["Trasporto"]).mean() if not df.empty else prezzo_base
-
-    st.markdown("### 📊 Riepilogo")
-
-    def card(label, value):
-        return f"""
-        <div style="
-            padding:14px;
-            border-radius:14px;
-            background:#111827;
-            color:white;
-            text-align:center;
-            margin:6px 0;
-        ">
-        <div style="font-size:12px;opacity:0.7;">{label}</div>
-        <div style="font-size:20px;font-weight:600">{value}</div>
-        </div>
-        """
-
-    k1, k2 = st.columns(2, gap="small")
-    k3, k4 = st.columns(2, gap="small")
-
-    with k1:
-        st.markdown(card("💰 Base", f"{prezzo_base:.3f} €"), unsafe_allow_html=True)
-
-    with k2:
-        st.markdown(card("👤 Clienti", clienti_count), unsafe_allow_html=True)
-
-    with k3:
-        st.markdown(card("📊 Margine medio", f"{media_margine:.3f}"), unsafe_allow_html=True)
-
-    with k4:
-        st.markdown(card("⛽ Prezzo medio", f"{prezzo_medio:.3f}"), unsafe_allow_html=True)
-
-    st.divider()
-
-    # =======================
-    # SEARCH
-    # =======================
-    search = st.text_input("🔍 Cerca cliente")
-
-    filtered = df.copy()
-
-    if search and not df.empty:
-        filtered = filtered[
-            filtered["Nome"].str.contains(search, case=False) |
-            filtered["PIVA"].str.contains(search, case=False)
-        ]
-
-    # =======================
-    # CLIENT LIST
-    # =======================
-    for _, c in filtered.iterrows():
-
-        prezzo_finale = prezzo_base + c["Margine"] + c["Trasporto"]
-
-        st.markdown(f"""
-        ### 👤 {c['Nome']}
-        📄 P.IVA: {c['PIVA']}  
-        💰 **{prezzo_finale:.3f} €/L**
-        """)
-
-        col1, col2 = st.columns(2, gap="small")
-
-        with col1:
-            msg = f"Prezzo oggi {prezzo_finale:.3f} €/L"
-            link = f"https://wa.me/{c['Telefono']}?text={msg.replace(' ', '%20')}"
-
-            st.markdown(
-                f"""
-                <a href="{link}" target="_blank" style="
-                    display:inline-block;
-                    padding:6px 10px;
-                    font-size:12px;
-                    background:#22c55e;
-                    color:white;
-                    border-radius:8px;
-                    text-decoration:none;
-                    text-align:center;
-                    width:100%;
-                ">
-                📲 WhatsApp
-                </a>
-                """,
-                unsafe_allow_html=True
-            )
-
-        with col2:
-            if st.button("🗑️ Elimina cliente", key=f"del_{c['ID']}"):
-                st.session_state.clienti = df[df["ID"] != c["ID"]]
-                save_data(st.session_state.clienti)
-                st.rerun()
-
-        st.divider()
-
-# =========================================================
-# 👤 LISTA CLIENTI
-# =========================================================
-elif page == "clienti":
-
-    st.markdown("## 👤 Clienti")
-
-    search = st.text_input("🔍 Cerca cliente")
-
-    filtered = df.copy()
-
-    if search and not df.empty:
-        filtered = filtered[
-            filtered["Nome"].str.contains(search, case=False) |
-            filtered["PIVA"].str.contains(search, case=False)
-        ]
-
-    for _, c in filtered.iterrows():
-
-        st.markdown(f"""
-        ### 👤 {c['Nome']}
-        📄 {c['PIVA']}  
-        📞 {c['Telefono']}
-        """)
-
-        col1, col2 = st.columns(2, gap="small")
-
-        with col1:
-            if st.button("✏️ Modifica cliente", key=f"edit_{c['ID']}"):
-                st.session_state.edit_id = c["ID"]
-                st.session_state.page = "cliente"
-
-        with col2:
-            if st.button("🗑️ Elimina cliente", key=f"del_list_{c['ID']}"):
-                st.session_state.clienti = df[df["ID"] != c["ID"]]
-                save_data(st.session_state.clienti)
-                st.rerun()
-
-        st.divider()
-
-# =========================================================
-# ➕ CREA / MODIFICA CLIENTE
-# =========================================================
-elif page == "cliente":
-
-    st.markdown("## ➕ Cliente")
-
-    editing = st.session_state.edit_id is not None
-
-    if editing:
-        c = df[df["ID"] == st.session_state.edit_id]
-        if c.empty:
-            st.warning("Cliente non trovato")
-            st.stop()
-        c = c.iloc[0]
+# ---- TAB 3: ALLERT RIORDINO MAGAZZINO ----
+with tab3:
+    st.subheader("🚨 Prodotti in Esaurimento - Ordini Fornitore Immediati")
+    st.markdown("Filtro estratto direttamente dal foglio di calcolo del magazzino.")
+    
+    # Mostra solo i prodotti che richiedono azione immediata
+    df_riordino = df_magazzino[df_magazzino['Allert Riordino'] == 'ORDINA SUBITO'][
+        ['Prodotto (SKU o nome)', 'Stock (A magazzino)', 'Punto di riordino (Stock minimo da avere)', 'Quantità da ordinare', 'Copertura stock (Giorni)']
+    ]
+    
+    if not df_riordino.empty:
+        st.warning(f"Ci sono {len(df_riordino)} prodotti sotto la soglia minima critica!")
+        st.dataframe(df_riordino.style.background_gradient(subset=['Stock (A magazzino)'], cmap='Reds'), use_container_width=True)
     else:
-        c = {"Nome": "", "PIVA": "", "Telefono": "", "Margine": 0.0, "Trasporto": 0.0}
-
-    nome = st.text_input("Nome", value=c["Nome"])
-    piva = st.text_input("P.IVA", value=c["PIVA"])
-    tel = st.text_input("Telefono", value=c["Telefono"])
-
-    margine = st.number_input("Margine", value=float(c["Margine"]), step=0.001, format="%.3f")
-    trasporto = st.number_input("Trasporto", value=float(c["Trasporto"]), step=0.001, format="%.3f")
-
-    if st.button("💾 Salva cliente"):
-
-        if editing:
-            st.session_state.clienti.loc[
-                st.session_state.clienti["ID"] == st.session_state.edit_id,
-                ["Nome", "PIVA", "Telefono", "Margine", "Trasporto"]
-            ] = [nome, piva, tel, margine, trasporto]
-
-            st.session_state.edit_id = None
-
-        else:
-            if df.empty:
-                new_id = 1
-            else:
-                new_id = int(df["ID"].max()) + 1
-
-            new_row = pd.DataFrame([{
-                "ID": new_id,
-                "Nome": nome,
-                "PIVA": piva,
-                "Telefono": tel,
-                "Margine": margine,
-                "Trasporto": trasporto
-            }])
-
-            st.session_state.clienti = pd.concat([df, new_row], ignore_index=True)
-
-        save_data(st.session_state.clienti)
-
-        st.success("Salvato!")
-        st.session_state.page = "clienti"
-        st.rerun()
+        st.success("Tutti i prodotti a magazzino hanno una copertura stock ottimale!")
